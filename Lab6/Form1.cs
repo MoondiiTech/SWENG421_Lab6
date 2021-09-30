@@ -62,8 +62,8 @@ namespace Lab6
                 int fromVertexID = Prompt.ShowDialog("From a vertex with an ID: ", "Continue");
                 int toVertexID = Prompt.ShowDialog("To a vertex with an ID: ", "Finish");
                 
-                edge.SetFromVertex(GraphManager.getInstance().GetGraph(graphID).GetVertex(fromVertexID));
-                edge.SetToVertex(GraphManager.getInstance().GetGraph(graphID).GetVertex(toVertexID));
+                edge.SetFromVertex(getInstance().GetGraph(graphID).GetVertex(fromVertexID));
+                edge.SetToVertex(getInstance().GetGraph(graphID).GetVertex(toVertexID));
                 return edge;
             }
 
@@ -94,7 +94,7 @@ namespace Lab6
             }
             public void Revise(int graphID)
             {
-                Graph graph = GraphManager.getInstance().GetGraph(graphID);
+                Graph graph = getInstance().GetGraph(graphID);
                 int chosenVertexNum = Prompt.ShowDialog("Enter the vertex number: ", "Done");
                 int chosenEdgeNum = Prompt.ShowDialog("Enter the edge number: ", "Done");
                 Vertex chosenVertex = graph.GetVertex(chosenVertexNum);
