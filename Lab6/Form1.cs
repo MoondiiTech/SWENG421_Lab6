@@ -10,20 +10,31 @@ namespace Lab6
 {
     public partial class Form1 : Form
     {
-        int selectedGraphId;
-        public static Graphics g;
-        public static Bitmap bg;
+        public static Form1 instance { get; private set; }
+
         public Form1()
         {
             InitializeComponent();
 
-            bg = new Bitmap(DrawingArea.Width, DrawingArea.Height);
-            g = Graphics.FromImage(bg);
-            DrawingArea.Image = bg;
+            if (instance != null) { 
+                 throw new Exception("There should be only one Form1 instace");
+            }
+
+            instance = this;
+
+            bm = new Bitmap(DrawingArea.Width, DrawingArea.Height);
+            g = Graphics.FromImage(bm);
+            DrawingArea.Image = bm;
         }
 
+        int selectedGraphId;
+        Bitmap bm;
+        Graphics g;
+        Pen pen = new Pen(Color.Black);
+        SolidBrush brush = new SolidBrush(Color.Black);
+
         public class GraphManager
-        {
+        {           
             private static GraphManager _instance = new GraphManager();
             private ArrayList _graphs = new ArrayList();
 
@@ -41,70 +52,130 @@ namespace Lab6
                         return graph;
                     }
                 }
+                MessageBox.Show("Graph with an ID: " + graphID + " could not be found");
                 return null;
             }
-            private Point promptVertexCoordinates(Vertex vertex)
+            public Point promptVertexCoordinates(Vertex vertex)
             {
                 int tempx = Prompt.ShowDialog("Enter the vertex " + vertex.GetVertexNumber() + "'s x coordinate: ", "OK");
                 int tempy = Prompt.ShowDialog("Enter the vertex " + vertex.GetVertexNumber() + "'s y coordinate: ", "OK");
                 return new Point(tempx, tempy);
             }
-            private int promptVertexID()
-            {
-                int tempId = Prompt.ShowDialog("Enter the vertex's ID: ", "OK");
-                return tempId;
+            public int promptVertexID(int graphID)
+            { 
+                int tempID = Prompt.ShowDialog("Enter the new vertex's ID: ", "OK");
+                            
+                foreach (Vertex vertex in GraphManager.getInstance().GetGraph(graphID).GetAllVertices())
+                {
+                    if(vertex.GetVertexNumber() == tempID)
+                    {
+                        MessageBox.Show("There is a vertex with the same ID in the graph with ID: " + graphID);
+                        tempID = Prompt.ShowDialog("Enter the new vertex's ID: ", "OK");
+                    }
+                }
+
+                return tempID;
             }
-            private Edge promptEdge(int graphID)
+            public Edge promptEdge(int graphID)
             {
                 Edge edge = new Edge();
-                int edgeId = Prompt.ShowDialog("Enter the edge ID: ", "OK");
+                int edgeId = Prompt.ShowDialog("Enter the new edge's ID: ", "OK");
+
+                foreach (Edge e in GraphManager.getInstance().GetGraph(graphID).GetAllEdges())
+                {
+                    if(e.GetEdgeNumber() == edgeId)
+                    {
+                        MessageBox.Show("There is a edge with the same ID in the graph with ID: " + graphID);
+                        edgeId = Prompt.ShowDialog("Enter the new edge's ID: ", "OK");
+                    }
+                }
+
                 edge.SetEdgeNumber(edgeId);
-                int fromVertexID = Prompt.ShowDialog("From a vertex with an ID: ", "Continue");
-                int toVertexID = Prompt.ShowDialog("To a vertex with an ID: ", "Finish");
-                
-                edge.SetFromVertex(getInstance().GetGraph(graphID).GetVertex(fromVertexID));
-                edge.SetToVertex(getInstance().GetGraph(graphID).GetVertex(toVertexID));
+                promptEdgeVertices(edge, graphID);
                 return edge;
             }
-
+            private void promptEdgeVertices(Edge edge, int graphID)
+            {
+                int fromVertexID = Prompt.ShowDialog("From a vertex with an ID: ", "Continue");
+                int toVertexID = Prompt.ShowDialog("To a vertex with an ID: ", "Finish");
+                edge.SetFromVertex(getInstance().GetGraph(graphID).GetVertex(fromVertexID));
+                edge.SetToVertex(getInstance().GetGraph(graphID).GetVertex(toVertexID));
+            }
+            public int promptGraphID()
+            {
+                return Prompt.ShowDialog("Enter the graphic ID for your new graph: ", "OK");
+            }
             public void Create(int graphID)
             {
                 Graph graph = new Graph();
                 graph.SetId(graphID);
+                _graphs.Add(graph);
+
                 int howManyVertices, howManyEdges;
                 howManyVertices = Prompt.ShowDialog("How many vertices do you want to draw?", "OK");
                 howManyEdges = Prompt.ShowDialog("How many edges do you want to draw?", "OK");
                 for (int i = 0; i < howManyVertices; i++)
                 {
                     Vertex vertex = new Vertex();
-                    vertex.SetVertexNumber(promptVertexID());
+                    vertex.SetVertexNumber(promptVertexID(graphID));
                     vertex.SetCoordinate(promptVertexCoordinates(vertex));
-                    vertex.Draw(g);
-                    graph.AddVertex(vertex);
+                    vertex.Draw(Form1.instance.g);
+                    GraphManager.getInstance().GetGraph(graphID).AddVertex(vertex);
                 }
 
                 for (int i = 0; i < howManyEdges; i++)
                 {
                     Edge edge = new Edge();
                     edge = promptEdge(graphID);
-                    edge.Draw(g);
+                    GraphManager.getInstance().GetGraph(graphID).AddEdge(edge);
+                    edge.Draw(Form1.instance.g);
                 }
-                _graphs.Add(graph);
+
+                Form1.instance.graphsDropDown.Items.Add(graphID);
+                Form1.instance.graphsDropDown.Text = graphID.ToString();
 
             }
             public void Revise(int graphID)
             {
-                Graph graph = getInstance().GetGraph(graphID);
-                int chosenVertexNum = Prompt.ShowDialog("Enter the vertex number: ", "Done");
-                int chosenEdgeNum = Prompt.ShowDialog("Enter the edge number: ", "Done");
-                Vertex chosenVertex = graph.GetVertex(chosenVertexNum);
+                Graph graph = GraphManager.getInstance().GetGraph(graphID);
+                Vertex chosenVertex;
+                Edge chosenEdge;
+                int chosenVertexNum = Prompt.ShowDialog("Enter the vertex number of the vertex you want to revise for graph " + graphID + ": " , "Done");
+                try
+                {
+                    chosenVertex = graph.GetVertex(chosenVertexNum);
+                }
+                catch(Exception e)
+                {
+                    MessageBox.Show("Vertex with an ID: " + chosenVertexNum +" could not be found");
+                    return;
+                }
+
                 chosenVertex.SetCoordinate(promptVertexCoordinates(chosenVertex));
-                Edge chosenEdge = graph.GetEdge(chosenEdgeNum);
-                chosenEdge = promptEdge(graphID);
+                chosenVertex.Draw(Form1.instance.g);
+                int chosenEdgeNum = Prompt.ShowDialog("Enter the edge number of the edge you want to revise for graph " + graphID + ": " , "Done");
+
+                try
+                {
+                    chosenEdge = graph.GetEdge(chosenEdgeNum);
+                }
+                catch(Exception e)
+                {
+                    MessageBox.Show("Edge with an ID: " + chosenEdgeNum +" could not be found");
+                    return;
+                }
+                promptEdgeVertices(chosenEdge, graphID);
+                chosenEdge.Draw(Form1.instance.g);
             }
             public void Copy(int graphID)
             {
                 Graph copyGraph = new Graph();
+                GraphManager graphManager = GraphManager.getInstance();
+                copyGraph = (Graph)graphManager.GetGraph(graphID).Clone();
+                int newID = graphManager.promptGraphID();
+                MessageBox.Show("Cloning graph with an ID: " + graphID);
+                copyGraph.SetId(newID);
+                Form1.instance.graphsDropDown.Items.Add(newID);
                 _graphs.Add(copyGraph);
             }
         }
@@ -161,7 +232,6 @@ namespace Lab6
                 Graph tempG = new Graph();
                 tempG.SetVerticees(_vertices.Select(a => a.Clone()).Cast<Vertex>().ToList());
                 tempG.SetEdges(_edges.Select(a => a.Clone()).Cast<Edge>().ToList());
-                tempG.SetId(_id);
                 return tempG;
             }
         }
@@ -189,8 +259,8 @@ namespace Lab6
             }
             public void Draw(Graphics g)
             {
-                SolidBrush brush = new SolidBrush(Color.Black);
-                g.FillRectangle(brush, new Rectangle(_x_coordinate, _y_coordinate, 1, 1));
+                g.FillRectangle(Form1.instance.brush, new Rectangle(_x_coordinate, _y_coordinate, 1, 1));
+                Form1.instance.DrawingArea.Refresh();
             }
             public object Clone()
             {
@@ -232,8 +302,8 @@ namespace Lab6
 
             public void Draw(Graphics g)
             {
-                Pen pen = new Pen(Color.Black);
-                g.DrawLine(pen, _from_vertex.GetCoordinate(), _to_vertex.GetCoordinate());
+                g.DrawLine(Form1.instance.pen, _from_vertex.GetCoordinate(), _to_vertex.GetCoordinate());
+                Form1.instance.DrawingArea.Refresh();
             }
             public object Clone()
             {
@@ -251,8 +321,7 @@ namespace Lab6
 
         private void create_Click(object sender, EventArgs e)
         {
-            selectedGraphId = Prompt.ShowDialog("Enter the graphic ID for your new graph: ", "OK");
-            graphsDropDown.Items.Add(selectedGraphId);
+            selectedGraphId = GraphManager.getInstance().promptGraphID();
             GraphManager.getInstance().Create(selectedGraphId);
         }
 
@@ -270,26 +339,42 @@ namespace Lab6
         {
             public static int ShowDialog(string text, string caption)
             {
+                int result = 0;
                 Form prompt = new Form()
                 {
-                    Width = 400,
-                    Height = 150,
+                    Width = 420,
+                    Height = 200,
                     FormBorderStyle = FormBorderStyle.FixedDialog,
                     Text = caption,
                     StartPosition = FormStartPosition.CenterScreen
                 };
 
-                Label textLabel = new Label() { Left = 50, Top = 20, Text = text, Width = prompt.Width - 100 };
-                TextBox textBox = new TextBox() { Left = 50, Top = 50, Width = 50 };
-                Button confirmation = new Button() { Text = "Ok", Left = 120, Width = 100, Top = 50, DialogResult = DialogResult.OK };
+                Label textLabel = new Label() { Left = 50, Top = 20, Text = text, Width = prompt.Width - 40 };
+                TextBox textBox = new TextBox() { Left = 50, Top = 50, Width = 300 };
+                Button confirmation = new Button() { Text = "OK", Left = 150, Width = 100, Top = 100, DialogResult = DialogResult.OK };
                 confirmation.Click += (sender, e) => { prompt.Close(); };
                 prompt.Controls.Add(textBox);
                 prompt.Controls.Add(confirmation);
                 prompt.Controls.Add(textLabel);
                 prompt.AcceptButton = confirmation;
-
-
-                return prompt.ShowDialog() == DialogResult.OK ? Int32.Parse(textBox.Text) : 0;
+               
+                try
+                {
+                    if(prompt.ShowDialog() == DialogResult.OK){
+                        result = Int32.Parse(textBox.Text);
+                    }
+                    else
+                    {
+                        System.Windows.Forms.Application.Exit();
+                    }
+                }
+                catch(Exception e)
+                {
+                    MessageBox.Show(e.Message);
+                    ShowDialog(text,caption);
+                }
+               
+                return result;
             }
         }
     }
